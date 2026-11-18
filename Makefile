@@ -1,6 +1,6 @@
-.PHONY: check lint format typecheck test
+.PHONY: check lint format typecheck schema test
 
-check: lint typecheck test
+check: lint typecheck schema test
 
 lint:
 	poetry run python -m ruff check .
@@ -16,3 +16,6 @@ typecheck:
 
 test:
 	poetry run python -m pytest
+
+schema:
+	poetry run python manage.py spectacular --validate --fail-on-warn --file /dev/null

@@ -33,11 +33,12 @@
 
 ## Проверки
 
-- `make check` — Ruff, проверка форматирования, mypy, Pyright и pytest.
+- `make check` — Ruff, проверка форматирования, mypy, Pyright, OpenAPI и pytest.
 - `make lint` — Ruff и проверка форматирования без изменения файлов.
 - `make format` — исправления Ruff и форматирование с изменением файлов.
 - `make typecheck` — mypy и Pyright.
 - `make test` — pytest.
+- `make schema` — генерация и валидация OpenAPI без предупреждений.
 - После изменения кода запускай `make check`. После изменения моделей также
   запускай `poetry run python manage.py makemigrations --check --dry-run`.
 - Если проверка не выполнена или завершилась ошибкой, явно сообщи об этом.
@@ -45,6 +46,7 @@
 ## Структура
 
 - `config/` — настройки Django, маршруты, ASGI и WSGI.
+- `api/` — маршруты API, сериализаторы и представления.
 - `tests/` — автоматические тесты; тестовая база управляется pytest-django.
 - `.github/workflows/` — проверки и сборка контейнера.
 - `Makefile` — общие команды разработки и проверок.
