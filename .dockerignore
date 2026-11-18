@@ -68,6 +68,14 @@ target/
 
 # Virtual environment
 .env/
+.env
+.env.*
+.python-version
+db.sqlite3*
+staticfiles/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
 .venv/
 venv/
 

@@ -4,14 +4,14 @@ EXPOSE 8000
 
 WORKDIR /code
 
-ENV PYTHONDONTWRITEBYTECODE 1 PYTHONUNBUFFERED 1
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends build-essential gcc libc-dev libffi-dev libssl-dev && \
     rm -rf /var/lib/apt/lists/* && \
     pip install --upgrade pip && \
     pip install --upgrade setuptools && \
-    pip install --upgrade poetry
+    pip install poetry==2.1.2
 
 COPY poetry.lock pyproject.toml /code/
 

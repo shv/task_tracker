@@ -1,3 +1,9 @@
+x-django-environment: &django-environment
+  TASK_TRACKER_BAK_PG_DSN: postgresql://task_tracker:task_tracker_dev@postgres-dev:5432/task_tracker
+  TASK_TRACKER_BAK_DJANGO_SECRET_KEY: ${TASK_TRACKER_BAK_DJANGO_SECRET_KEY:-}
+  TASK_TRACKER_BAK_DJANGO_DEBUG: "true"
+  TASK_TRACKER_BAK_DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,[::1]
+
 services:
   dev:
     profiles:
@@ -8,15 +14,16 @@ services:
       args:
         POETRY_DEV_INSTALL: "true"
     depends_on:
-      - postgres-dev
+      postgres-dev:
+        condition: service_healthy
+      migrate-dev:
+        condition: service_completed_successfully
     ports:
       - "8089:8000"
     volumes:
       - ./:/code
 
-    environment:
-      - TASK_TRACKER_BAK_PG_DSN=postgresql://task_tracker:@postgres-prod:5432/task_tracker
-      - TASK_TRACKER_BAK_DJANGO_SECRET_KEY=${TASK_TRACKER_BAK_DJANGO_SECRET_KEY:-}
+    environment: *django-environment
     networks:
       - task_tracker_net
 
@@ -30,10 +37,9 @@ services:
         POETRY_DEV_INSTALL: "false"
     command: ["poetry", "run", "python", "manage.py", "migrate"]
     depends_on:
-      - postgres-dev
-    environment:
-      - TASK_TRACKER_BAK_PG_DSN=postgresql://task_tracker:@postgres-prod:5432/task_tracker
-      - TASK_TRACKER_BAK_DJANGO_SECRET_KEY=${TASK_TRACKER_BAK_DJANGO_SECRET_KEY:-}
+      postgres-dev:
+        condition: service_healthy
+    environment: *django-environment
     networks:
       - task_tracker_net
 
@@ -42,16 +48,25 @@ services:
     profiles:
       - dev
     environment:
-      - POSTGRES_DB=task_tracker
-      - POSTGRES_USER=task_tracker
-      - POSTGRES_PASSWORD=
+      POSTGRES_DB: task_tracker
+      POSTGRES_USER: task_tracker
+      POSTGRES_PASSWORD: task_tracker_dev
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+      start_period: 5s
     ports:
       - "5445:5432"
     networks:
       - task_tracker_net
     volumes:
-      - ./../_local_db/db:/var/lib/postgresql/data
+      - postgres_dev_data:/var/lib/postgresql/data
 
 networks:
   task_tracker_net:
     driver: bridge
+
+volumes:
+  postgres_dev_data:
