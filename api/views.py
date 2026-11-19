@@ -14,11 +14,13 @@ from drf_spectacular.utils import (
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.mixins import CreateModelMixin
 from rest_framework.permissions import AllowAny
 from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.serializers import BaseSerializer
 from rest_framework.views import APIView
-from rest_framework.viewsets import ViewSet
+from rest_framework.viewsets import GenericViewSet, ViewSet
 
 from api.exceptions import EndpointNotImplemented
 from api.serializers import (
@@ -30,10 +32,10 @@ from api.serializers import (
     LoginSerializer,
     TaskPageSerializer,
     TaskSerializer,
-    TaskWriteSerializer,
     UserPageSerializer,
     UserSerializer,
 )
+from tasks.models import Task
 
 ERROR_RESPONSES = {
     403: OpenApiResponse(
@@ -67,18 +69,18 @@ CSRF_PARAMETER = OpenApiParameter(
         responses={200: TaskPageSerializer, **ERROR_RESPONSES},
     ),
     create=extend_schema(
-        request=TaskWriteSerializer,
+        request=TaskSerializer,
         responses={
             201: TaskSerializer,
             400: VALIDATION_ERROR_RESPONSE,
-            **ERROR_RESPONSES,
+            403: ERROR_RESPONSES[403],
         },
     ),
     retrieve=extend_schema(
         responses={200: TaskSerializer, 404: ErrorSerializer, **ERROR_RESPONSES},
     ),
     update=extend_schema(
-        request=TaskWriteSerializer,
+        request=TaskSerializer,
         responses={
             200: TaskSerializer,
             400: VALIDATION_ERROR_RESPONSE,
@@ -87,7 +89,7 @@ CSRF_PARAMETER = OpenApiParameter(
         },
     ),
     partial_update=extend_schema(
-        request=TaskWriteSerializer,
+        request=TaskSerializer,
         responses={
             200: TaskSerializer,
             400: VALIDATION_ERROR_RESPONSE,
@@ -99,14 +101,16 @@ CSRF_PARAMETER = OpenApiParameter(
         responses={204: None, 404: ErrorSerializer, **ERROR_RESPONSES},
     ),
 )
-class TaskViewSet(ViewSet):
+class TaskViewSet(CreateModelMixin, GenericViewSet[Task]):
+    queryset = Task.objects.none()
+    serializer_class = TaskSerializer
     lookup_value_converter = "int"
 
     def list(self, request: Request) -> NoReturn:
         raise EndpointNotImplemented
 
-    def create(self, request: Request) -> NoReturn:
-        raise EndpointNotImplemented
+    def perform_create(self, serializer: BaseSerializer[Task]) -> None:
+        serializer.save(author=self.request.user)
 
     def retrieve(self, request: Request, pk: int | None = None) -> NoReturn:
         raise EndpointNotImplemented

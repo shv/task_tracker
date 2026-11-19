@@ -3,6 +3,8 @@ from django.contrib.auth.models import AbstractBaseUser
 from drf_spectacular.utils import extend_schema_serializer
 from rest_framework import serializers
 
+from tasks.models import Task
+
 
 class ErrorSerializer(serializers.Serializer[dict[str, object]]):
     detail = serializers.CharField()
@@ -15,22 +17,29 @@ class UserSerializer(serializers.ModelSerializer[AbstractBaseUser]):
         read_only_fields = fields
 
 
-class TaskWriteSerializer(serializers.Serializer[dict[str, object]]):
-    title = serializers.CharField(max_length=255)
-    description = serializers.CharField(allow_blank=True, default="")
-    assignee_id = serializers.IntegerField(min_value=1, allow_null=True, default=None)
-    is_completed = serializers.BooleanField(default=False)
+class TaskSerializer(serializers.ModelSerializer[Task]):
+    author_id = serializers.IntegerField(read_only=True)
+    assignee_id = serializers.PrimaryKeyRelatedField(
+        source="assignee",
+        queryset=get_user_model().objects.filter(is_active=True),
+        pk_field=serializers.IntegerField(min_value=1),
+        allow_null=True,
+        required=False,
+    )
 
-
-class TaskSerializer(serializers.Serializer[dict[str, object]]):
-    id = serializers.IntegerField(min_value=1)
-    title = serializers.CharField(max_length=255)
-    description = serializers.CharField(allow_blank=True)
-    author_id = serializers.IntegerField(min_value=1)
-    assignee_id = serializers.IntegerField(min_value=1, allow_null=True)
-    is_completed = serializers.BooleanField()
-    created_at = serializers.DateTimeField()
-    updated_at = serializers.DateTimeField()
+    class Meta:
+        model = Task
+        fields = (
+            "id",
+            "title",
+            "description",
+            "author_id",
+            "assignee_id",
+            "is_completed",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = ("id", "author_id", "created_at", "updated_at")
 
 
 class CommentWriteSerializer(serializers.Serializer[dict[str, object]]):

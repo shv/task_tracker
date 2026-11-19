@@ -50,13 +50,15 @@ def test_schema_describes_all_endpoints_and_stub_responses(client: Client) -> No
         assert set(schema["paths"][path]) == methods
         for method in methods:
             responses = schema["paths"][path][method]["responses"]
-            if path.startswith("/api/v1/auth/"):
+            if path.startswith("/api/v1/auth/") or (
+                path == "/api/v1/tasks/" and method == "post"
+            ):
                 assert "501" not in responses
             else:
                 assert "501" in responses
 
     components = schema["components"]["schemas"]
-    write_schema = components["TaskWriteRequest"]
+    write_schema = components["TaskRequest"]
     assert write_schema["required"] == ["title"]
     assert set(write_schema["properties"]) == {
         "title",
@@ -64,7 +66,7 @@ def test_schema_describes_all_endpoints_and_stub_responses(client: Client) -> No
         "assignee_id",
         "is_completed",
     }
-    assert not components["PatchedTaskWriteRequest"].get("required")
+    assert not components["PatchedTaskRequest"].get("required")
     task_list_schema = schema["paths"]["/api/v1/tasks/"]["get"]["responses"]["200"][
         "content"
     ]["application/json"]["schema"]
