@@ -31,7 +31,7 @@ select = ["E4", "E7", "E9", "F", "I", "UP", "B"]
 
 [tool.mypy]
 python_version = "3.13"
-files = ["api", "config", "tests", "manage.py"]
+files = ["api", "config", "tasks", "tests", "manage.py"]
 plugins = ["mypy_django_plugin.main"]
 strict = true
 
@@ -39,7 +39,7 @@ strict = true
 django_settings_module = "config.settings"
 
 [tool.pyright]
-include = ["api", "config", "tests", "manage.py"]
+include = ["api", "config", "tasks", "tests", "manage.py"]
 pythonVersion = "3.13"
 typeCheckingMode = "basic"
 
