@@ -13,6 +13,7 @@ class Task(models.Model):
         on_delete=models.PROTECT,
         related_name="authored_tasks",
     )
+    author_id: int
     assignee = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,

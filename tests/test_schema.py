@@ -53,7 +53,7 @@ def test_schema_describes_all_endpoints_and_stub_responses(client: Client) -> No
             if (
                 path.startswith("/api/v1/auth/")
                 or path == "/api/v1/tasks/"
-                or (path == "/api/v1/tasks/{id}/" and method == "get")
+                or (path == "/api/v1/tasks/{id}/" and method != "delete")
             ):
                 assert "501" not in responses
             else:

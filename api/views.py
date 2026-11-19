@@ -15,8 +15,13 @@ from drf_spectacular.utils import (
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.exceptions import AuthenticationFailed
-from rest_framework.mixins import CreateModelMixin, ListModelMixin, RetrieveModelMixin
-from rest_framework.permissions import AllowAny
+from rest_framework.mixins import (
+    CreateModelMixin,
+    ListModelMixin,
+    RetrieveModelMixin,
+    UpdateModelMixin,
+)
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.serializers import BaseSerializer
@@ -24,6 +29,7 @@ from rest_framework.views import APIView
 from rest_framework.viewsets import GenericViewSet, ViewSet
 
 from api.exceptions import EndpointNotImplemented
+from api.permissions import TaskPermission
 from api.serializers import (
     CommentPageSerializer,
     CommentSerializer,
@@ -90,20 +96,27 @@ CSRF_PARAMETER = OpenApiParameter(
     ),
     update=extend_schema(
         request=TaskSerializer,
+        parameters=[CSRF_PARAMETER],
+        description="Only the task author may use PUT. The title field is required.",
         responses={
             200: TaskSerializer,
             400: VALIDATION_ERROR_RESPONSE,
             404: ErrorSerializer,
-            **ERROR_RESPONSES,
+            403: ERROR_RESPONSES[403],
         },
     ),
     partial_update=extend_schema(
         request=TaskSerializer,
+        parameters=[CSRF_PARAMETER],
+        description=(
+            "The author may edit task fields. The current assignee may only send "
+            "is_completed; additional fields are rejected with 403."
+        ),
         responses={
             200: TaskSerializer,
             400: VALIDATION_ERROR_RESPONSE,
             404: ErrorSerializer,
-            **ERROR_RESPONSES,
+            403: ERROR_RESPONSES[403],
         },
     ),
     destroy=extend_schema(
@@ -111,10 +124,15 @@ CSRF_PARAMETER = OpenApiParameter(
     ),
 )
 class TaskViewSet(
-    CreateModelMixin, ListModelMixin, RetrieveModelMixin, GenericViewSet[Task]
+    CreateModelMixin,
+    ListModelMixin,
+    RetrieveModelMixin,
+    UpdateModelMixin,
+    GenericViewSet[Task],
 ):
     queryset: QuerySet[Task] = Task.objects.all()
     serializer_class = TaskSerializer
+    permission_classes = [IsAuthenticated, TaskPermission]
     lookup_value_converter = "int"
 
     def get_queryset(self) -> QuerySet[Task]:
@@ -123,12 +141,6 @@ class TaskViewSet(
 
     def perform_create(self, serializer: BaseSerializer[Task]) -> None:
         serializer.save(author=self.request.user)
-
-    def update(self, request: Request, pk: int | None = None) -> NoReturn:
-        raise EndpointNotImplemented
-
-    def partial_update(self, request: Request, pk: int | None = None) -> NoReturn:
-        raise EndpointNotImplemented
 
     def destroy(self, request: Request, pk: int | None = None) -> NoReturn:
         raise EndpointNotImplemented
