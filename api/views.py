@@ -1,13 +1,22 @@
-from typing import NoReturn
+from typing import NoReturn, cast
 
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.models import AbstractBaseUser
+from django.middleware.csrf import get_token
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import never_cache
 from drf_spectacular.utils import (
     OpenApiParameter,
     OpenApiResponse,
     extend_schema,
     extend_schema_view,
 )
+from rest_framework import status
+from rest_framework.authentication import SessionAuthentication
+from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.permissions import AllowAny
 from rest_framework.request import Request
+from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ViewSet
 
@@ -41,6 +50,13 @@ VALIDATION_ERROR_RESPONSE = OpenApiResponse(
 )
 PAGE_PARAMETER = OpenApiParameter(
     name="page", type=int, description="Page number, starting from 1. Page size: 20."
+)
+CSRF_PARAMETER = OpenApiParameter(
+    name="X-CSRFToken",
+    type=str,
+    location=OpenApiParameter.HEADER,
+    required=True,
+    description="CSRF token from auth/csrf/. Refresh the token after login.",
 )
 
 
@@ -144,39 +160,57 @@ class UserViewSet(ViewSet):
 
 
 @extend_schema(tags=["Authentication"])
+@method_decorator(never_cache, name="dispatch")
 class CsrfView(APIView):
+    authentication_classes = []
     permission_classes = [AllowAny]
 
-    @extend_schema(responses={200: CsrfSerializer, 501: ErrorSerializer})
-    def get(self, request: Request) -> NoReturn:
-        raise EndpointNotImplemented
+    @extend_schema(responses={200: CsrfSerializer})
+    def get(self, request: Request) -> Response:
+        return Response({"csrf_token": get_token(request._request)})
 
 
 @extend_schema(tags=["Authentication"])
+@method_decorator(never_cache, name="dispatch")
 class LoginView(APIView):
     permission_classes = [AllowAny]
 
     @extend_schema(
         request=LoginSerializer,
+        parameters=[CSRF_PARAMETER],
         responses={
             200: UserSerializer,
             400: VALIDATION_ERROR_RESPONSE,
-            **ERROR_RESPONSES,
+            403: ERROR_RESPONSES[403],
         },
     )
-    def post(self, request: Request) -> NoReturn:
-        raise EndpointNotImplemented
+    def post(self, request: Request) -> Response:
+        SessionAuthentication().enforce_csrf(request)
+        serializer = LoginSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = authenticate(request._request, **serializer.validated_data)
+        if user is None:
+            raise AuthenticationFailed("Invalid username or password.")
+        login(request._request, user)
+        return Response(UserSerializer(user).data)
 
 
 @extend_schema(tags=["Authentication"])
+@method_decorator(never_cache, name="dispatch")
 class LogoutView(APIView):
-    @extend_schema(request=None, responses={204: None, **ERROR_RESPONSES})
-    def post(self, request: Request) -> NoReturn:
-        raise EndpointNotImplemented
+    @extend_schema(
+        request=None,
+        parameters=[CSRF_PARAMETER],
+        responses={204: None, 403: ERROR_RESPONSES[403]},
+    )
+    def post(self, request: Request) -> Response:
+        logout(request._request)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 @extend_schema(tags=["Authentication"])
+@method_decorator(never_cache, name="dispatch")
 class CurrentUserView(APIView):
-    @extend_schema(responses={200: UserSerializer, **ERROR_RESPONSES})
-    def get(self, request: Request) -> NoReturn:
-        raise EndpointNotImplemented
+    @extend_schema(responses={200: UserSerializer, 403: ERROR_RESPONSES[403]})
+    def get(self, request: Request) -> Response:
+        return Response(UserSerializer(cast(AbstractBaseUser, request.user)).data)

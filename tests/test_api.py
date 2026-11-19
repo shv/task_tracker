@@ -15,8 +15,6 @@ PROTECTED_ENDPOINTS = [
     ("GET", "/api/v1/tasks/1/comments/"),
     ("POST", "/api/v1/tasks/1/comments/"),
     ("GET", "/api/v1/users/"),
-    ("POST", "/api/v1/auth/logout/"),
-    ("GET", "/api/v1/auth/me/"),
 ]
 
 
@@ -44,19 +42,6 @@ def test_protected_stubs_require_authentication(
     assert set(response.json()) == {"detail"}
     if authenticated:
         assert response.json()["detail"] == "This endpoint is not implemented yet."
-
-
-@pytest.mark.parametrize(
-    ("method", "url"),
-    [("GET", "/api/v1/auth/csrf/"), ("POST", "/api/v1/auth/login/")],
-)
-def test_public_auth_stubs_are_accessible_without_login(
-    client: Client, method: str, url: str
-) -> None:
-    response = client.generic(method, url, data="{}", content_type="application/json")
-
-    assert response.status_code == HTTPStatus.NOT_IMPLEMENTED
-    assert response.json() == {"detail": "This endpoint is not implemented yet."}
 
 
 @pytest.mark.django_db

@@ -1,3 +1,5 @@
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AbstractBaseUser
 from drf_spectacular.utils import extend_schema_serializer
 from rest_framework import serializers
 
@@ -6,9 +8,11 @@ class ErrorSerializer(serializers.Serializer[dict[str, object]]):
     detail = serializers.CharField()
 
 
-class UserSerializer(serializers.Serializer[dict[str, object]]):
-    id = serializers.IntegerField(min_value=1)
-    username = serializers.CharField(max_length=150)
+class UserSerializer(serializers.ModelSerializer[AbstractBaseUser]):
+    class Meta:
+        model = get_user_model()
+        fields = ("id", "username")
+        read_only_fields = fields
 
 
 class TaskWriteSerializer(serializers.Serializer[dict[str, object]]):

@@ -49,7 +49,11 @@ def test_schema_describes_all_endpoints_and_stub_responses(client: Client) -> No
     for path, methods in expected_paths.items():
         assert set(schema["paths"][path]) == methods
         for method in methods:
-            assert "501" in schema["paths"][path][method]["responses"]
+            responses = schema["paths"][path][method]["responses"]
+            if path.startswith("/api/v1/auth/"):
+                assert "501" not in responses
+            else:
+                assert "501" in responses
 
     components = schema["components"]["schemas"]
     write_schema = components["TaskWriteRequest"]
