@@ -2,6 +2,7 @@ from typing import NoReturn, cast
 
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import AbstractBaseUser
+from django.db.models import Q, QuerySet
 from django.middleware.csrf import get_token
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
@@ -14,7 +15,7 @@ from drf_spectacular.utils import (
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.exceptions import AuthenticationFailed
-from rest_framework.mixins import CreateModelMixin
+from rest_framework.mixins import CreateModelMixin, ListModelMixin, RetrieveModelMixin
 from rest_framework.permissions import AllowAny
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -66,7 +67,11 @@ CSRF_PARAMETER = OpenApiParameter(
 @extend_schema_view(
     list=extend_schema(
         parameters=[PAGE_PARAMETER],
-        responses={200: TaskPageSerializer, **ERROR_RESPONSES},
+        responses={
+            200: TaskPageSerializer,
+            403: ERROR_RESPONSES[403],
+            404: ErrorSerializer,
+        },
     ),
     create=extend_schema(
         request=TaskSerializer,
@@ -77,7 +82,11 @@ CSRF_PARAMETER = OpenApiParameter(
         },
     ),
     retrieve=extend_schema(
-        responses={200: TaskSerializer, 404: ErrorSerializer, **ERROR_RESPONSES},
+        responses={
+            200: TaskSerializer,
+            403: ERROR_RESPONSES[403],
+            404: ErrorSerializer,
+        },
     ),
     update=extend_schema(
         request=TaskSerializer,
@@ -101,19 +110,19 @@ CSRF_PARAMETER = OpenApiParameter(
         responses={204: None, 404: ErrorSerializer, **ERROR_RESPONSES},
     ),
 )
-class TaskViewSet(CreateModelMixin, GenericViewSet[Task]):
-    queryset = Task.objects.none()
+class TaskViewSet(
+    CreateModelMixin, ListModelMixin, RetrieveModelMixin, GenericViewSet[Task]
+):
+    queryset: QuerySet[Task] = Task.objects.all()
     serializer_class = TaskSerializer
     lookup_value_converter = "int"
 
-    def list(self, request: Request) -> NoReturn:
-        raise EndpointNotImplemented
+    def get_queryset(self) -> QuerySet[Task]:
+        user = self.request.user
+        return self.queryset.filter(Q(author_id=user.pk) | Q(assignee_id=user.pk))
 
     def perform_create(self, serializer: BaseSerializer[Task]) -> None:
         serializer.save(author=self.request.user)
-
-    def retrieve(self, request: Request, pk: int | None = None) -> NoReturn:
-        raise EndpointNotImplemented
 
     def update(self, request: Request, pk: int | None = None) -> NoReturn:
         raise EndpointNotImplemented

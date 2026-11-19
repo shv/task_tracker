@@ -50,8 +50,10 @@ def test_schema_describes_all_endpoints_and_stub_responses(client: Client) -> No
         assert set(schema["paths"][path]) == methods
         for method in methods:
             responses = schema["paths"][path][method]["responses"]
-            if path.startswith("/api/v1/auth/") or (
-                path == "/api/v1/tasks/" and method == "post"
+            if (
+                path.startswith("/api/v1/auth/")
+                or path == "/api/v1/tasks/"
+                or (path == "/api/v1/tasks/{id}/" and method == "get")
             ):
                 assert "501" not in responses
             else:
