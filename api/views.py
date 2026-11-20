@@ -17,6 +17,7 @@ from rest_framework.authentication import SessionAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.mixins import (
     CreateModelMixin,
+    DestroyModelMixin,
     ListModelMixin,
     RetrieveModelMixin,
     UpdateModelMixin,
@@ -120,7 +121,10 @@ CSRF_PARAMETER = OpenApiParameter(
         },
     ),
     destroy=extend_schema(
-        responses={204: None, 404: ErrorSerializer, **ERROR_RESPONSES},
+        request=None,
+        parameters=[CSRF_PARAMETER],
+        description="Only the task author may delete it. Its comments are deleted too.",
+        responses={204: None, 403: ERROR_RESPONSES[403], 404: ErrorSerializer},
     ),
 )
 class TaskViewSet(
@@ -128,6 +132,7 @@ class TaskViewSet(
     ListModelMixin,
     RetrieveModelMixin,
     UpdateModelMixin,
+    DestroyModelMixin,
     GenericViewSet[Task],
 ):
     queryset: QuerySet[Task] = Task.objects.all()
@@ -141,9 +146,6 @@ class TaskViewSet(
 
     def perform_create(self, serializer: BaseSerializer[Task]) -> None:
         serializer.save(author=self.request.user)
-
-    def destroy(self, request: Request, pk: int | None = None) -> NoReturn:
-        raise EndpointNotImplemented
 
 
 @extend_schema(tags=["Comments"])
