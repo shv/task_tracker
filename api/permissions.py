@@ -11,6 +11,7 @@ class TaskPermission(BasePermission):
     message = "Only the author may edit task fields; assignees may PATCH is_completed."
 
     def has_object_permission(self, request: Request, view: APIView, obj: Task) -> bool:
+        # The view's queryset already limits objects to authors and current assignees.
         if request.method in SAFE_METHODS or obj.author_id == request.user.pk:
             return True
         return (

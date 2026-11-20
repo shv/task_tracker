@@ -122,6 +122,7 @@ SIMPLE_JWT = {
     "BLACKLIST_AFTER_ROTATION": True,
     "TOKEN_OBTAIN_SERIALIZER": "api.token_serializers.TokenPairSerializer",
     "TOKEN_REFRESH_SERIALIZER": "api.token_serializers.TokenRefreshSerializer",
+    "TOKEN_BLACKLIST_SERIALIZER": "api.token_serializers.TokenBlacklistSerializer",
 }
 
 SPECTACULAR_SETTINGS = {

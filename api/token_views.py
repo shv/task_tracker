@@ -7,6 +7,7 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
 
+from api.schema import VALIDATION_ERROR_RESPONSE
 from api.serializers import (
     EmptyResponseSerializer,
     ErrorSerializer,
@@ -14,7 +15,6 @@ from api.serializers import (
     RefreshTokenRequestSerializer,
     TokenPairResponseSerializer,
 )
-from api.views import VALIDATION_ERROR_RESPONSE
 
 
 @extend_schema(tags=["Authentication"])

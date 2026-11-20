@@ -75,3 +75,29 @@ def test_schema_describes_all_endpoints_without_stubs(client: Client) -> None:
         "content"
     ]["application/json"]["schema"]
     assert task_list_schema == {"$ref": "#/components/schemas/TaskPage"}
+
+
+@pytest.mark.parametrize(
+    ("path", "method", "required"),
+    [
+        ("/api/v1/tasks/", "post", False),
+        ("/api/v1/tasks/{id}/", "put", False),
+        ("/api/v1/tasks/{id}/", "patch", False),
+        ("/api/v1/tasks/{id}/", "delete", False),
+        ("/api/v1/tasks/{task_id}/comments/", "post", False),
+        ("/api/v1/auth/login/", "post", True),
+        ("/api/v1/auth/logout/", "post", True),
+    ],
+)
+def test_schema_requires_csrf_only_for_session_endpoints(
+    client: Client, path: str, method: str, required: bool
+) -> None:
+    schema = client.get(
+        reverse("api-schema"), HTTP_ACCEPT="application/vnd.oai.openapi+json"
+    ).json()
+
+    parameters = schema["paths"][path][method]["parameters"]
+    csrf = next(
+        parameter for parameter in parameters if parameter["name"] == "X-CSRFToken"
+    )
+    assert csrf.get("required", False) is required

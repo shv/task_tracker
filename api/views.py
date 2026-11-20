@@ -2,14 +2,13 @@ from typing import cast
 
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.contrib.auth.models import AbstractBaseUser
+from django.db import transaction
 from django.db.models import QuerySet
 from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from drf_spectacular.utils import (
-    OpenApiParameter,
-    OpenApiResponse,
     extend_schema,
     extend_schema_view,
 )
@@ -31,6 +30,14 @@ from rest_framework.views import APIView
 from rest_framework.viewsets import GenericViewSet
 
 from api.permissions import TaskPermission
+from api.schema import (
+    AUTH_ERROR_RESPONSES,
+    CSRF_PARAMETER,
+    PAGE_PARAMETER,
+    PERMISSION_ERROR_RESPONSE,
+    SESSION_CSRF_PARAMETER,
+    VALIDATION_ERROR_RESPONSE,
+)
 from api.serializers import (
     CommentPageSerializer,
     CommentSerializer,
@@ -45,28 +52,6 @@ from api.serializers import (
 from tasks.models import Comment, Task
 from tasks.queries import tasks_for_user
 
-PERMISSION_ERROR_RESPONSE = OpenApiResponse(
-    ErrorSerializer, description="Authentication or access denied."
-)
-AUTH_ERROR_RESPONSES = {401: ErrorSerializer, 403: PERMISSION_ERROR_RESPONSE}
-VALIDATION_ERROR_RESPONSE = OpenApiResponse(
-    response={
-        "type": "object",
-        "additionalProperties": {"type": "array", "items": {"type": "string"}},
-    },
-    description="Validation errors grouped by field, including non_field_errors.",
-)
-PAGE_PARAMETER = OpenApiParameter(
-    name="page", type=int, description="Page number, starting from 1. Page size: 20."
-)
-CSRF_PARAMETER = OpenApiParameter(
-    name="X-CSRFToken",
-    type=str,
-    location=OpenApiParameter.HEADER,
-    required=True,
-    description="CSRF token from auth/csrf/. Refresh the token after login.",
-)
-
 
 @extend_schema(tags=["Tasks"])
 @extend_schema_view(
@@ -80,6 +65,7 @@ CSRF_PARAMETER = OpenApiParameter(
     ),
     create=extend_schema(
         request=TaskSerializer,
+        parameters=[CSRF_PARAMETER],
         responses={
             201: TaskSerializer,
             400: VALIDATION_ERROR_RESPONSE,
@@ -125,6 +111,7 @@ CSRF_PARAMETER = OpenApiParameter(
         responses={204: None, **AUTH_ERROR_RESPONSES, 404: ErrorSerializer},
     ),
 )
+@method_decorator(transaction.atomic, name="dispatch")
 class TaskViewSet(
     CreateModelMixin,
     ListModelMixin,
@@ -139,7 +126,11 @@ class TaskViewSet(
     lookup_value_converter = "int"
 
     def get_queryset(self) -> QuerySet[Task]:
-        return tasks_for_user(self.request.user.pk)
+        queryset = tasks_for_user(self.request.user.pk)
+        if self.action in {"update", "partial_update", "destroy"}:
+            # Keep permissions and writes on the same task version during reassignment.
+            queryset = queryset.select_for_update()
+        return queryset
 
     def perform_create(self, serializer: BaseSerializer[Task]) -> None:
         serializer.save(author=self.request.user)
@@ -166,6 +157,7 @@ class TaskViewSet(
         },
     ),
 )
+@method_decorator(transaction.atomic, name="dispatch")
 class CommentViewSet(CreateModelMixin, ListModelMixin, GenericViewSet[Comment]):
     queryset: QuerySet[Comment] = Comment.objects.all()
     serializer_class = CommentSerializer
@@ -173,9 +165,11 @@ class CommentViewSet(CreateModelMixin, ListModelMixin, GenericViewSet[Comment]):
 
     def initial(self, request: Request, *args: object, **kwargs: object) -> None:
         super().initial(request, *args, **kwargs)
-        self.task = get_object_or_404(
-            tasks_for_user(request.user.pk), pk=self.kwargs["task_id"]
-        )
+        queryset = tasks_for_user(request.user.pk)
+        if request.method == "POST":
+            # Reassignment must not revoke access between this check and insertion.
+            queryset = queryset.select_for_update()
+        self.task = get_object_or_404(queryset, pk=self.kwargs["task_id"])
 
     def get_queryset(self) -> QuerySet[Comment]:
         return self.queryset.filter(task=self.task)
@@ -224,7 +218,7 @@ class LoginView(APIView):
 
     @extend_schema(
         request=LoginSerializer,
-        parameters=[CSRF_PARAMETER],
+        parameters=[SESSION_CSRF_PARAMETER],
         responses={
             200: UserSerializer,
             400: VALIDATION_ERROR_RESPONSE,
@@ -232,6 +226,7 @@ class LoginView(APIView):
         },
     )
     def post(self, request: Request) -> Response:
+        # DRF skips CSRF for anonymous sessions, but login must also be protected.
         SessionAuthentication().enforce_csrf(request)
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -249,7 +244,7 @@ class LogoutView(APIView):
 
     @extend_schema(
         request=None,
-        parameters=[CSRF_PARAMETER],
+        parameters=[SESSION_CSRF_PARAMETER],
         responses={204: None, 403: PERMISSION_ERROR_RESPONSE},
     )
     def post(self, request: Request) -> Response:
