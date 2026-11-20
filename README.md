@@ -31,13 +31,3 @@ poetry install --with dev
 
 Перед коммитом запускайте `make check`. Если нужно исправить форматирование,
 выполните `make format`, проверьте изменения и снова запустите `make check`.
-
-## Структура
-
-```text
-config/          Настройки Django, маршруты, ASGI и WSGI
-manage.py        Команды управления Django
-pyproject.toml   Зависимости и метаданные проекта
-poetry.lock      Зафиксированные версии зависимостей
-poetry.toml      Локальная для проекта настройка Poetry
-```
