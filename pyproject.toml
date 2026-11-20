@@ -9,7 +9,8 @@ dependencies = [
     "djangorestframework (>=3.18.3,<4.0.0)",
     "psycopg[binary] (>=3.3.9,<4.0.0)",
     "dj-database-url (>=3.1.2,<4.0.0)",
-    "drf-spectacular[sidecar] (>=0.30.0,<0.31.0)"
+    "drf-spectacular[sidecar] (>=0.30.0,<0.31.0)",
+    "djangorestframework-simplejwt[crypto] (>=5.5.1,<6.0.0)"
 ]
 
 

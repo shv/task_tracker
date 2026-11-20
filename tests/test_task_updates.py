@@ -371,7 +371,7 @@ def test_anonymous_user_cannot_update_task(
         content_type="application/json",
     )
 
-    assert response.status_code == HTTPStatus.FORBIDDEN
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
     assert Task.objects.values().get(pk=task.pk) == before
 
 

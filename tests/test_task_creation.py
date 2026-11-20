@@ -194,7 +194,7 @@ def test_anonymous_user_cannot_create_task(client: Client) -> None:
         content_type="application/json",
     )
 
-    assert response.status_code == HTTPStatus.FORBIDDEN
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
     assert not Task.objects.exists()
 
 
@@ -210,7 +210,7 @@ def test_inactive_user_cannot_create_task(
         content_type="application/json",
     )
 
-    assert response.status_code == HTTPStatus.FORBIDDEN
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
     assert not Task.objects.exists()
 
 

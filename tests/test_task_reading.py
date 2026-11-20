@@ -197,7 +197,7 @@ def test_anonymous_user_cannot_read_tasks(
 
     response = client.get(url)
 
-    assert response.status_code == HTTPStatus.FORBIDDEN
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
 
 
 def test_inactive_user_cannot_read_tasks(
@@ -208,7 +208,7 @@ def test_inactive_user_cannot_read_tasks(
     user.save()
 
     for url in [reverse("api:task-list"), reverse("api:task-detail", args=[task.pk])]:
-        assert authenticated_client.get(url).status_code == HTTPStatus.FORBIDDEN
+        assert authenticated_client.get(url).status_code == HTTPStatus.UNAUTHORIZED
 
 
 def test_reading_tasks_does_not_require_csrf_token(user: User) -> None:

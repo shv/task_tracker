@@ -280,7 +280,7 @@ def test_anonymous_user_cannot_access_comments(
         content_type="application/json",
     )
 
-    assert response.status_code == HTTPStatus.FORBIDDEN
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
     assert not Comment.objects.exists()
 
 
@@ -291,11 +291,11 @@ def test_inactive_user_cannot_access_comments(
     author.save()
     url = reverse("api:comment-list", args=[task.pk])
 
-    assert author_client.get(url).status_code == HTTPStatus.FORBIDDEN
+    assert author_client.get(url).status_code == HTTPStatus.UNAUTHORIZED
     response = author_client.post(
         url, {"text": "Forbidden"}, content_type="application/json"
     )
-    assert response.status_code == HTTPStatus.FORBIDDEN
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
     assert not Comment.objects.exists()
 
 

@@ -43,6 +43,9 @@ def test_schema_describes_all_endpoints_without_stubs(client: Client) -> None:
         "/api/v1/auth/login/": {"post"},
         "/api/v1/auth/logout/": {"post"},
         "/api/v1/auth/me/": {"get"},
+        "/api/v1/auth/token/": {"post"},
+        "/api/v1/auth/token/refresh/": {"post"},
+        "/api/v1/auth/token/blacklist/": {"post"},
     }
     assert set(schema["paths"]) == set(expected_paths)
     for path, methods in expected_paths.items():
@@ -66,6 +69,8 @@ def test_schema_describes_all_endpoints_without_stubs(client: Client) -> None:
     assert set(comment_request["properties"]) == {"text"}
     assert comment_request["properties"]["text"]["maxLength"] == 10000
     assert set(components["User"]["properties"]) == {"id", "username"}
+    assert set(components["TokenPairResponse"]["properties"]) == {"access", "refresh"}
+    assert schema["components"]["securitySchemes"]["jwtAuth"]["scheme"] == "bearer"
     task_list_schema = schema["paths"]["/api/v1/tasks/"]["get"]["responses"]["200"][
         "content"
     ]["application/json"]["schema"]

@@ -189,13 +189,13 @@ def test_logout_invalidates_session_and_prevents_replay(
     assert not Session.objects.filter(session_key=session_key).exists()
     assert (
         logged_in_client.get(reverse("api:current-user")).status_code
-        == HTTPStatus.FORBIDDEN
+        == HTTPStatus.UNAUTHORIZED
     )
     other_client = Client()
     other_client.cookies[settings.SESSION_COOKIE_NAME] = session_key
     assert (
         other_client.get(reverse("api:current-user")).status_code
-        == HTTPStatus.FORBIDDEN
+        == HTTPStatus.UNAUTHORIZED
     )
 
 
@@ -245,7 +245,12 @@ def test_protected_auth_views_require_login(
 ) -> None:
     response = client.generic(method, reverse(view_name))
 
-    assert response.status_code == HTTPStatus.FORBIDDEN
+    expected = (
+        HTTPStatus.UNAUTHORIZED
+        if view_name == "api:current-user"
+        else HTTPStatus.FORBIDDEN
+    )
+    assert response.status_code == expected
 
 
 @pytest.mark.parametrize("change", ["deactivate", "change_password"])
@@ -260,7 +265,7 @@ def test_account_changes_revoke_session(
 
     response = logged_in_client.get(reverse("api:current-user"))
 
-    assert response.status_code == HTTPStatus.FORBIDDEN
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
 
 
 def test_browsable_api_login_works_for_non_staff_user(user: User) -> None:

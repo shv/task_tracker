@@ -78,3 +78,16 @@ class LoginSerializer(serializers.Serializer[dict[str, object]]):
 
 class CsrfSerializer(serializers.Serializer[dict[str, object]]):
     csrf_token = serializers.CharField()
+
+
+class TokenPairResponseSerializer(serializers.Serializer[dict[str, str]]):
+    access = serializers.CharField(read_only=True)
+    refresh = serializers.CharField(read_only=True)
+
+
+class RefreshTokenRequestSerializer(serializers.Serializer[dict[str, str]]):
+    refresh = serializers.CharField(write_only=True)
+
+
+class EmptyResponseSerializer(serializers.Serializer[dict[str, object]]):
+    pass

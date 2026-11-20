@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 import os
+from datetime import timedelta
 from pathlib import Path
 
 import dj_database_url
@@ -53,6 +54,7 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "drf_spectacular_sidecar",
     "tasks.apps.TasksConfig",
+    "rest_framework_simplejwt.token_blacklist",
 ]
 
 MIDDLEWARE = [
@@ -105,6 +107,7 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
     "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
@@ -112,11 +115,20 @@ REST_FRAMEWORK = {
     ],
 }
 
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "TOKEN_OBTAIN_SERIALIZER": "api.token_serializers.TokenPairSerializer",
+    "TOKEN_REFRESH_SERIALIZER": "api.token_serializers.TokenRefreshSerializer",
+}
+
 SPECTACULAR_SETTINGS = {
     "TITLE": "Task Tracker API",
     "VERSION": "0.1.0",
     "DESCRIPTION": (
-        "Сессионная авторизация и все операции с задачами реализованы. "
+        "JWT, сессионная авторизация и все операции с задачами реализованы. "
         "Автор может редактировать и переназначать задачу. "
         "Исполнитель может только менять is_completed через PATCH. "
         "Задачи видят только автор и текущий исполнитель. Список возвращается "
@@ -124,8 +136,10 @@ SPECTACULAR_SETTINGS = {
         "только автору и удаляет комментарии задачи. Автор и текущий исполнитель "
         "могут читать и добавлять комментарии. Список пользователей содержит "
         "только активные аккаунты и возвращает только id и username. "
-        "Закрытые ручки требуют сессию Django и возвращают 403 без входа. "
-        "Перед входом получите csrf_token через GET /api/v1/auth/csrf/. "
+        "Для JWT получите access и refresh через POST /api/v1/auth/token/. "
+        "Передавайте access в Authorization: Bearer <access>; CSRF для JWT не нужен. "
+        "Закрытые ручки возвращают 401 без авторизации и 403 при запрете доступа. "
+        "Для входа через сессию получите csrf_token через GET /api/v1/auth/csrf/. "
         "Передавайте его в X-CSRFToken при входе и последующих изменяющих "
         "запросах. После входа повторно получите токен: Django обновляет CSRF cookie. "
         "Назначение и завершение задачи выполняются через PATCH полей "

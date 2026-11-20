@@ -106,7 +106,7 @@ def test_only_author_can_delete_task(
 def test_anonymous_user_cannot_delete_task(client: Client, task: Task) -> None:
     response = client.delete(reverse("api:task-detail", args=[task.pk]))
 
-    assert response.status_code == HTTPStatus.FORBIDDEN
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
     assert Task.objects.filter(pk=task.pk).exists()
 
 
@@ -119,7 +119,7 @@ def test_inactive_author_cannot_delete_task(
 
     response = client.delete(reverse("api:task-detail", args=[task.pk]))
 
-    assert response.status_code == HTTPStatus.FORBIDDEN
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
     assert Task.objects.filter(pk=task.pk).exists()
 
 

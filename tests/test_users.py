@@ -97,7 +97,7 @@ def test_invalid_page_returns_404(authenticated_client: Client, page: str) -> No
 def test_anonymous_user_cannot_list_accounts(client: Client) -> None:
     response = client.get(reverse("api:user-list"))
 
-    assert response.status_code == HTTPStatus.FORBIDDEN
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
 
 
 def test_inactive_user_cannot_list_accounts(
@@ -108,7 +108,7 @@ def test_inactive_user_cannot_list_accounts(
 
     response = authenticated_client.get(reverse("api:user-list"))
 
-    assert response.status_code == HTTPStatus.FORBIDDEN
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
 
 
 def test_listing_users_does_not_require_csrf(user: User) -> None:

@@ -48,6 +48,7 @@ from tasks.queries import tasks_for_user
 PERMISSION_ERROR_RESPONSE = OpenApiResponse(
     ErrorSerializer, description="Authentication or access denied."
 )
+AUTH_ERROR_RESPONSES = {401: ErrorSerializer, 403: PERMISSION_ERROR_RESPONSE}
 VALIDATION_ERROR_RESPONSE = OpenApiResponse(
     response={
         "type": "object",
@@ -73,7 +74,7 @@ CSRF_PARAMETER = OpenApiParameter(
         parameters=[PAGE_PARAMETER],
         responses={
             200: TaskPageSerializer,
-            403: PERMISSION_ERROR_RESPONSE,
+            **AUTH_ERROR_RESPONSES,
             404: ErrorSerializer,
         },
     ),
@@ -82,13 +83,13 @@ CSRF_PARAMETER = OpenApiParameter(
         responses={
             201: TaskSerializer,
             400: VALIDATION_ERROR_RESPONSE,
-            403: PERMISSION_ERROR_RESPONSE,
+            **AUTH_ERROR_RESPONSES,
         },
     ),
     retrieve=extend_schema(
         responses={
             200: TaskSerializer,
-            403: PERMISSION_ERROR_RESPONSE,
+            **AUTH_ERROR_RESPONSES,
             404: ErrorSerializer,
         },
     ),
@@ -100,7 +101,7 @@ CSRF_PARAMETER = OpenApiParameter(
             200: TaskSerializer,
             400: VALIDATION_ERROR_RESPONSE,
             404: ErrorSerializer,
-            403: PERMISSION_ERROR_RESPONSE,
+            **AUTH_ERROR_RESPONSES,
         },
     ),
     partial_update=extend_schema(
@@ -114,14 +115,14 @@ CSRF_PARAMETER = OpenApiParameter(
             200: TaskSerializer,
             400: VALIDATION_ERROR_RESPONSE,
             404: ErrorSerializer,
-            403: PERMISSION_ERROR_RESPONSE,
+            **AUTH_ERROR_RESPONSES,
         },
     ),
     destroy=extend_schema(
         request=None,
         parameters=[CSRF_PARAMETER],
         description="Only the task author may delete it. Its comments are deleted too.",
-        responses={204: None, 403: PERMISSION_ERROR_RESPONSE, 404: ErrorSerializer},
+        responses={204: None, **AUTH_ERROR_RESPONSES, 404: ErrorSerializer},
     ),
 )
 class TaskViewSet(
@@ -151,7 +152,7 @@ class TaskViewSet(
         responses={
             200: CommentPageSerializer,
             404: ErrorSerializer,
-            403: PERMISSION_ERROR_RESPONSE,
+            **AUTH_ERROR_RESPONSES,
         },
     ),
     create=extend_schema(
@@ -161,7 +162,7 @@ class TaskViewSet(
             201: CommentSerializer,
             400: VALIDATION_ERROR_RESPONSE,
             404: ErrorSerializer,
-            403: PERMISSION_ERROR_RESPONSE,
+            **AUTH_ERROR_RESPONSES,
         },
     ),
 )
@@ -189,7 +190,7 @@ class CommentViewSet(CreateModelMixin, ListModelMixin, GenericViewSet[Comment]):
         parameters=[PAGE_PARAMETER],
         responses={
             200: UserPageSerializer,
-            403: PERMISSION_ERROR_RESPONSE,
+            **AUTH_ERROR_RESPONSES,
             404: ErrorSerializer,
         },
     ),
@@ -218,6 +219,7 @@ class CsrfView(APIView):
 @extend_schema(tags=["Authentication"])
 @method_decorator(never_cache, name="dispatch")
 class LoginView(APIView):
+    authentication_classes = [SessionAuthentication]
     permission_classes = [AllowAny]
 
     @extend_schema(
@@ -243,6 +245,8 @@ class LoginView(APIView):
 @extend_schema(tags=["Authentication"])
 @method_decorator(never_cache, name="dispatch")
 class LogoutView(APIView):
+    authentication_classes = [SessionAuthentication]
+
     @extend_schema(
         request=None,
         parameters=[CSRF_PARAMETER],
@@ -256,6 +260,6 @@ class LogoutView(APIView):
 @extend_schema(tags=["Authentication"])
 @method_decorator(never_cache, name="dispatch")
 class CurrentUserView(APIView):
-    @extend_schema(responses={200: UserSerializer, 403: PERMISSION_ERROR_RESPONSE})
+    @extend_schema(responses={200: UserSerializer, **AUTH_ERROR_RESPONSES})
     def get(self, request: Request) -> Response:
         return Response(UserSerializer(cast(AbstractBaseUser, request.user)).data)
