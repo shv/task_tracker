@@ -8,8 +8,6 @@ from django.test import Client, RequestFactory
 from tasks.models import Task
 
 PROTECTED_ENDPOINTS = [
-    ("GET", "/api/v1/tasks/1/comments/"),
-    ("POST", "/api/v1/tasks/1/comments/"),
     ("GET", "/api/v1/users/"),
 ]
 

@@ -3,7 +3,7 @@ from django.contrib.auth.models import AbstractBaseUser
 from drf_spectacular.utils import extend_schema_serializer
 from rest_framework import serializers
 
-from tasks.models import Task
+from tasks.models import Comment, Task
 
 
 class ErrorSerializer(serializers.Serializer[dict[str, object]]):
@@ -42,15 +42,14 @@ class TaskSerializer(serializers.ModelSerializer[Task]):
         read_only_fields = ("id", "author_id", "created_at", "updated_at")
 
 
-class CommentWriteSerializer(serializers.Serializer[dict[str, object]]):
-    text = serializers.CharField(max_length=10000)
+class CommentSerializer(serializers.ModelSerializer[Comment]):
+    task_id = serializers.IntegerField(read_only=True)
+    author_id = serializers.IntegerField(read_only=True)
 
-
-class CommentSerializer(CommentWriteSerializer):
-    id = serializers.IntegerField(min_value=1)
-    task_id = serializers.IntegerField(min_value=1)
-    author_id = serializers.IntegerField(min_value=1)
-    created_at = serializers.DateTimeField()
+    class Meta:
+        model = Comment
+        fields = ("id", "task_id", "author_id", "text", "created_at")
+        read_only_fields = ("id", "task_id", "author_id", "created_at")
 
 
 @extend_schema_serializer(many=False)

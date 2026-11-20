@@ -2,8 +2,9 @@ from typing import NoReturn, cast
 
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import AbstractBaseUser
-from django.db.models import Q, QuerySet
+from django.db.models import QuerySet
 from django.middleware.csrf import get_token
+from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from drf_spectacular.utils import (
@@ -34,7 +35,6 @@ from api.permissions import TaskPermission
 from api.serializers import (
     CommentPageSerializer,
     CommentSerializer,
-    CommentWriteSerializer,
     CsrfSerializer,
     ErrorSerializer,
     LoginSerializer,
@@ -43,7 +43,8 @@ from api.serializers import (
     UserPageSerializer,
     UserSerializer,
 )
-from tasks.models import Task
+from tasks.models import Comment, Task
+from tasks.queries import tasks_for_user
 
 ERROR_RESPONSES = {
     403: OpenApiResponse(
@@ -141,8 +142,7 @@ class TaskViewSet(
     lookup_value_converter = "int"
 
     def get_queryset(self) -> QuerySet[Task]:
-        user = self.request.user
-        return self.queryset.filter(Q(author_id=user.pk) | Q(assignee_id=user.pk))
+        return tasks_for_user(self.request.user.pk)
 
     def perform_create(self, serializer: BaseSerializer[Task]) -> None:
         serializer.save(author=self.request.user)
@@ -155,25 +155,36 @@ class TaskViewSet(
         responses={
             200: CommentPageSerializer,
             404: ErrorSerializer,
-            **ERROR_RESPONSES,
+            403: ERROR_RESPONSES[403],
         },
     ),
     create=extend_schema(
-        request=CommentWriteSerializer,
+        request=CommentSerializer,
+        parameters=[CSRF_PARAMETER],
         responses={
             201: CommentSerializer,
             400: VALIDATION_ERROR_RESPONSE,
             404: ErrorSerializer,
-            **ERROR_RESPONSES,
+            403: ERROR_RESPONSES[403],
         },
     ),
 )
-class CommentViewSet(ViewSet):
-    def list(self, request: Request, task_id: int) -> NoReturn:
-        raise EndpointNotImplemented
+class CommentViewSet(CreateModelMixin, ListModelMixin, GenericViewSet[Comment]):
+    queryset: QuerySet[Comment] = Comment.objects.all()
+    serializer_class = CommentSerializer
+    task: Task
 
-    def create(self, request: Request, task_id: int) -> NoReturn:
-        raise EndpointNotImplemented
+    def initial(self, request: Request, *args: object, **kwargs: object) -> None:
+        super().initial(request, *args, **kwargs)
+        self.task = get_object_or_404(
+            tasks_for_user(request.user.pk), pk=self.kwargs["task_id"]
+        )
+
+    def get_queryset(self) -> QuerySet[Comment]:
+        return self.queryset.filter(task=self.task)
+
+    def perform_create(self, serializer: BaseSerializer[Comment]) -> None:
+        serializer.save(task=self.task, author=self.request.user)
 
 
 @extend_schema(tags=["Users"])

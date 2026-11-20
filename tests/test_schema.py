@@ -33,7 +33,7 @@ def test_schema_describes_all_endpoints_and_stub_responses(client: Client) -> No
     assert response.status_code == HTTPStatus.OK
     schema = response.json()
     assert schema["openapi"] == "3.0.3"
-    assert "заглушками" in schema["info"]["description"]
+    assert "заглушкой" in schema["info"]["description"]
 
     expected_paths = {
         "/api/v1/tasks/": {"get", "post"},
@@ -54,6 +54,7 @@ def test_schema_describes_all_endpoints_and_stub_responses(client: Client) -> No
                 path.startswith("/api/v1/auth/")
                 or path == "/api/v1/tasks/"
                 or path == "/api/v1/tasks/{id}/"
+                or path == "/api/v1/tasks/{task_id}/comments/"
             ):
                 assert "501" not in responses
             else:
@@ -69,6 +70,10 @@ def test_schema_describes_all_endpoints_and_stub_responses(client: Client) -> No
         "is_completed",
     }
     assert not components["PatchedTaskRequest"].get("required")
+    comment_request = components["CommentRequest"]
+    assert comment_request["required"] == ["text"]
+    assert set(comment_request["properties"]) == {"text"}
+    assert comment_request["properties"]["text"]["maxLength"] == 10000
     task_list_schema = schema["paths"]["/api/v1/tasks/"]["get"]["responses"]["200"][
         "content"
     ]["application/json"]["schema"]
