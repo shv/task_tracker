@@ -1,6 +1,6 @@
-from typing import NoReturn, cast
+from typing import cast
 
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.contrib.auth.models import AbstractBaseUser
 from django.db.models import QuerySet
 from django.middleware.csrf import get_token
@@ -28,9 +28,8 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.serializers import BaseSerializer
 from rest_framework.views import APIView
-from rest_framework.viewsets import GenericViewSet, ViewSet
+from rest_framework.viewsets import GenericViewSet
 
-from api.exceptions import EndpointNotImplemented
 from api.permissions import TaskPermission
 from api.serializers import (
     CommentPageSerializer,
@@ -46,12 +45,9 @@ from api.serializers import (
 from tasks.models import Comment, Task
 from tasks.queries import tasks_for_user
 
-ERROR_RESPONSES = {
-    403: OpenApiResponse(
-        ErrorSerializer, description="Authentication or access denied."
-    ),
-    501: OpenApiResponse(ErrorSerializer, description="Endpoint is a stub."),
-}
+PERMISSION_ERROR_RESPONSE = OpenApiResponse(
+    ErrorSerializer, description="Authentication or access denied."
+)
 VALIDATION_ERROR_RESPONSE = OpenApiResponse(
     response={
         "type": "object",
@@ -77,7 +73,7 @@ CSRF_PARAMETER = OpenApiParameter(
         parameters=[PAGE_PARAMETER],
         responses={
             200: TaskPageSerializer,
-            403: ERROR_RESPONSES[403],
+            403: PERMISSION_ERROR_RESPONSE,
             404: ErrorSerializer,
         },
     ),
@@ -86,13 +82,13 @@ CSRF_PARAMETER = OpenApiParameter(
         responses={
             201: TaskSerializer,
             400: VALIDATION_ERROR_RESPONSE,
-            403: ERROR_RESPONSES[403],
+            403: PERMISSION_ERROR_RESPONSE,
         },
     ),
     retrieve=extend_schema(
         responses={
             200: TaskSerializer,
-            403: ERROR_RESPONSES[403],
+            403: PERMISSION_ERROR_RESPONSE,
             404: ErrorSerializer,
         },
     ),
@@ -104,7 +100,7 @@ CSRF_PARAMETER = OpenApiParameter(
             200: TaskSerializer,
             400: VALIDATION_ERROR_RESPONSE,
             404: ErrorSerializer,
-            403: ERROR_RESPONSES[403],
+            403: PERMISSION_ERROR_RESPONSE,
         },
     ),
     partial_update=extend_schema(
@@ -118,14 +114,14 @@ CSRF_PARAMETER = OpenApiParameter(
             200: TaskSerializer,
             400: VALIDATION_ERROR_RESPONSE,
             404: ErrorSerializer,
-            403: ERROR_RESPONSES[403],
+            403: PERMISSION_ERROR_RESPONSE,
         },
     ),
     destroy=extend_schema(
         request=None,
         parameters=[CSRF_PARAMETER],
         description="Only the task author may delete it. Its comments are deleted too.",
-        responses={204: None, 403: ERROR_RESPONSES[403], 404: ErrorSerializer},
+        responses={204: None, 403: PERMISSION_ERROR_RESPONSE, 404: ErrorSerializer},
     ),
 )
 class TaskViewSet(
@@ -155,7 +151,7 @@ class TaskViewSet(
         responses={
             200: CommentPageSerializer,
             404: ErrorSerializer,
-            403: ERROR_RESPONSES[403],
+            403: PERMISSION_ERROR_RESPONSE,
         },
     ),
     create=extend_schema(
@@ -165,7 +161,7 @@ class TaskViewSet(
             201: CommentSerializer,
             400: VALIDATION_ERROR_RESPONSE,
             404: ErrorSerializer,
-            403: ERROR_RESPONSES[403],
+            403: PERMISSION_ERROR_RESPONSE,
         },
     ),
 )
@@ -188,13 +184,24 @@ class CommentViewSet(CreateModelMixin, ListModelMixin, GenericViewSet[Comment]):
 
 
 @extend_schema(tags=["Users"])
-class UserViewSet(ViewSet):
-    @extend_schema(
+@extend_schema_view(
+    list=extend_schema(
         parameters=[PAGE_PARAMETER],
-        responses={200: UserPageSerializer, **ERROR_RESPONSES},
+        responses={
+            200: UserPageSerializer,
+            403: PERMISSION_ERROR_RESPONSE,
+            404: ErrorSerializer,
+        },
+    ),
+)
+class UserViewSet(ListModelMixin, GenericViewSet[AbstractBaseUser]):
+    queryset: QuerySet[AbstractBaseUser] = (
+        get_user_model()
+        .objects.filter(is_active=True)
+        .only("id", "username")
+        .order_by("username", "pk")
     )
-    def list(self, request: Request) -> NoReturn:
-        raise EndpointNotImplemented
+    serializer_class = UserSerializer
 
 
 @extend_schema(tags=["Authentication"])
@@ -219,7 +226,7 @@ class LoginView(APIView):
         responses={
             200: UserSerializer,
             400: VALIDATION_ERROR_RESPONSE,
-            403: ERROR_RESPONSES[403],
+            403: PERMISSION_ERROR_RESPONSE,
         },
     )
     def post(self, request: Request) -> Response:
@@ -239,7 +246,7 @@ class LogoutView(APIView):
     @extend_schema(
         request=None,
         parameters=[CSRF_PARAMETER],
-        responses={204: None, 403: ERROR_RESPONSES[403]},
+        responses={204: None, 403: PERMISSION_ERROR_RESPONSE},
     )
     def post(self, request: Request) -> Response:
         logout(request._request)
@@ -249,6 +256,6 @@ class LogoutView(APIView):
 @extend_schema(tags=["Authentication"])
 @method_decorator(never_cache, name="dispatch")
 class CurrentUserView(APIView):
-    @extend_schema(responses={200: UserSerializer, 403: ERROR_RESPONSES[403]})
+    @extend_schema(responses={200: UserSerializer, 403: PERMISSION_ERROR_RESPONSE})
     def get(self, request: Request) -> Response:
         return Response(UserSerializer(cast(AbstractBaseUser, request.user)).data)

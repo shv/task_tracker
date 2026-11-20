@@ -25,7 +25,7 @@ def test_documentation_assets_are_installed(asset: str) -> None:
     assert finders.find(asset) is not None
 
 
-def test_schema_describes_all_endpoints_and_stub_responses(client: Client) -> None:
+def test_schema_describes_all_endpoints_without_stubs(client: Client) -> None:
     response = client.get(
         reverse("api-schema"), HTTP_ACCEPT="application/vnd.oai.openapi+json"
     )
@@ -33,7 +33,6 @@ def test_schema_describes_all_endpoints_and_stub_responses(client: Client) -> No
     assert response.status_code == HTTPStatus.OK
     schema = response.json()
     assert schema["openapi"] == "3.0.3"
-    assert "заглушкой" in schema["info"]["description"]
 
     expected_paths = {
         "/api/v1/tasks/": {"get", "post"},
@@ -50,15 +49,7 @@ def test_schema_describes_all_endpoints_and_stub_responses(client: Client) -> No
         assert set(schema["paths"][path]) == methods
         for method in methods:
             responses = schema["paths"][path][method]["responses"]
-            if (
-                path.startswith("/api/v1/auth/")
-                or path == "/api/v1/tasks/"
-                or path == "/api/v1/tasks/{id}/"
-                or path == "/api/v1/tasks/{task_id}/comments/"
-            ):
-                assert "501" not in responses
-            else:
-                assert "501" in responses
+            assert "501" not in responses
 
     components = schema["components"]["schemas"]
     write_schema = components["TaskRequest"]
@@ -74,6 +65,7 @@ def test_schema_describes_all_endpoints_and_stub_responses(client: Client) -> No
     assert comment_request["required"] == ["text"]
     assert set(comment_request["properties"]) == {"text"}
     assert comment_request["properties"]["text"]["maxLength"] == 10000
+    assert set(components["User"]["properties"]) == {"id", "username"}
     task_list_schema = schema["paths"]["/api/v1/tasks/"]["get"]["responses"]["200"][
         "content"
     ]["application/json"]["schema"]
